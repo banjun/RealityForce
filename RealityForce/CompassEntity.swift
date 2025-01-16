@@ -14,8 +14,8 @@ final class CompassEntity: Entity {
 
         let n = ModelEntity(mesh: .generateCone(height: 0.02, radius: 0.003), materials: [SimpleMaterial(color: .red, isMetallic: true)])
         let s = ModelEntity(mesh: .generateCone(height: 0.02, radius: 0.003), materials: [SimpleMaterial(color: .white, isMetallic: false)])
-        n.transform = .init(scale: .init(0.1, 1, 1), rotation: .init(angle: -.pi / 2, axis: .init(1, 0, 0)), translation: .init(0, -0.01, 0))
-        s.transform = .init(scale: .init(0.1, 1, 1), rotation: .init(angle: .pi, axis: .init(1, 0, 0)), translation: .init(0, -0.02, 0))
+        n.scale.z = 0.1
+        s.transform = .init(scale: .init(1, 1, 0.1), rotation: .init(angle: .pi, axis: .init(1, 0, 0)), translation: .init(0, -0.02, 0))
         n.addChild(s)
         addChild(n)
 
@@ -28,17 +28,15 @@ final class CompassEntity: Entity {
         }())
         n.generateCollisionShapes(recursive: false)
 
-        disc.components.set({
-            var p = PhysicsBodyComponent(mode: .static)
-            p.isAffectedByGravity = false
-            p.isTranslationLocked = (true, true, true)
-            p.isRotationLocked = (true, true, true)
-            return p
-        }())
+        disc.components.set(PhysicsBodyComponent(mode: .static))
         disc.generateCollisionShapes(recursive: false)
 
-        let nPin = n.pins.set(named: "nFoot", position: .init(0, -0.01, 0))
-        let discPin = disc.pins.set(named: "discCenter", position: .init(0, 0.005, 0), orientation: .init(from: .init(1, 0, 0), to: .init(0, 1, 0)))
+        // x-axis is free in PhysicsRevoluteJoint by default.
+        // for nPin, free rotation should be around thin direction (z-axis)
+        // for discPin, free rotation should be around face direction (y-axis)
+        func revoluteAround(axis: SIMD3<Float>) -> simd_quatf { .init(from: SIMD3<Float>(1, 0, 0), to: axis) }
+        let nPin = n.pins.set(named: "nFoot", position: .init(0, -0.01, 0), orientation: revoluteAround(axis: .init(0, 0, 1)))
+        let discPin = disc.pins.set(named: "discCenter", position: .init(0, 0.005, 0), orientation: revoluteAround(axis: .init(0, 1, 0)))
         try! PhysicsRevoluteJoint(pin0: discPin, pin1: nPin).addToSimulation()
     }
 }
